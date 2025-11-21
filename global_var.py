@@ -9,5 +9,5 @@ try:
     print("args got")
     myModelConfig = process_config(args.config)
 
-except:
+except Exception:
     raise ValueError("missing or invalid arguments")
