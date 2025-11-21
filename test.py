@@ -1,8 +1,8 @@
 import os
 import csv
+import os
 import numpy as np
 import tensorflow as tf
-from acc_opt import SGDAccumulate
 from keras.models import load_model
 from data_generator import test_generator
 from loss_metric import score_loss, siam_loss, locate_loss, score_metric, locate_metric
@@ -26,7 +26,7 @@ print(model_path)
 save_dir = "./experiments/results"
 data_generator = test_generator()
 
-model = load_model(model_path, custom_objects={"tf": tf, "SGDAccumulate": SGDAccumulate, "score_loss": score_loss,
+model = load_model(model_path, custom_objects={"tf": tf, "score_loss": score_loss,
                                                "siam_loss": siam_loss, "locate_loss": locate_loss,
                                                "score_metric": score_metric, "locate_metric": locate_metric})
 count = 0
