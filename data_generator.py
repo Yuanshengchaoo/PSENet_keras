@@ -4,6 +4,7 @@ import re
 from PIL import Image, ImageEnhance
 import copy
 import openpyxl
+import zipfile
 from global_var import myModelConfig
 
 
@@ -253,8 +254,45 @@ class pasi_data():
     def build_patient_dict(self):
 
         excel_dir = myModelConfig.excel_path
-        wb = openpyxl.load_workbook(excel_dir)
-        sheet = wb["Sheet1"]
+
+        if not excel_dir:
+            print("[pasi_data] excel_path is empty in config; proceeding without patient metadata.")
+            return {}
+
+        candidate_paths = [excel_dir]
+        config_dir = getattr(myModelConfig, "config_dir", None)
+        if config_dir and not os.path.isabs(excel_dir):
+            candidate_paths.append(os.path.join(config_dir, excel_dir))
+
+        resolved_excel = None
+        for path in candidate_paths:
+            if os.path.isfile(path):
+                resolved_excel = path
+                break
+
+        if not resolved_excel:
+            raise FileNotFoundError(
+                "Patient metadata Excel file not found. "
+                f"Tried: {candidate_paths}. "
+                "Update config.excel_path to point to a valid .xlsx file."
+            )
+
+        try:
+            wb = openpyxl.load_workbook(resolved_excel)
+        except (openpyxl.utils.exceptions.InvalidFileException, zipfile.BadZipFile):
+            raise ValueError(
+                f"Patient metadata file '{resolved_excel}' is not a valid .xlsx workbook. "
+                "Ensure the file is saved in Excel format (ZIP-based .xlsx) and retry."
+            )
+
+        sheet_name = "Sheet1"
+        if sheet_name not in wb.sheetnames:
+            raise ValueError(
+                f"Workbook '{excel_dir}' does not contain a sheet named '{sheet_name}'. "
+                "Update the sheet name in data_generator.build_patient_dict if needed."
+            )
+
+        sheet = wb[sheet_name]
         patient_dict = dict()
         patient_list = sheet["A"][1:]
 

@@ -55,10 +55,10 @@ def PSENet(myModelConfig):
         if hasattr(layer, 'bias_regularizer') and layer.use_bias:
             layer.add_loss(keras.regularizers.l2(myModelConfig.weight_decay)(layer.bias))
 
-    # FPN
-    p3 = base_model.get_layer("activation_22").output
-    p4 = base_model.get_layer("activation_40").output
-    p5 = base_model.get_layer("activation_49").output
+    # FPN feature taps align with Keras 3 ResNet50 layer names
+    p3 = base_model.get_layer("conv3_block4_out").output
+    p4 = base_model.get_layer("conv4_block6_out").output
+    p5 = base_model.get_layer("conv5_block3_out").output
 
     p6 = Conv2D(256, (1, 1), padding='same', kernel_initializer='he_normal',
                 kernel_regularizer=regularizers.l2(myModelConfig.weight_decay))(base_model.output)

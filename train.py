@@ -33,9 +33,9 @@ with strategy.scope():
 
     optimizer = optimizers.SGD(learning_rate=myModelConfig.learning_rate, momentum=myModelConfig.momentum, nesterov=True)
 
-reduce_lr = callbacks.ReduceLROnPlateau(monitor='val_loss', factor=myModelConfig.learning_rate_decay_factor, patience=5,
-                                        verbose=1, mode='min', cooldown=10, min_lr=0.00001)
-my_early_stop = MyEarlyStop(siamese_model, myModelConfig.checkpoint_dir)
+    reduce_lr = callbacks.ReduceLROnPlateau(monitor='val_loss', factor=myModelConfig.learning_rate_decay_factor, patience=5,
+                                            verbose=1, mode='min', cooldown=10, min_lr=0.00001)
+    my_early_stop = MyEarlyStop(myModelConfig.checkpoint_dir)
 myTensorboard = callbacks.TensorBoard(log_dir=myModelConfig.summary_dir, histogram_freq=0, write_graph=False,
                                       write_images=True)
 
@@ -85,8 +85,6 @@ try:
                                 callbacks=my_call_back,
                                 validation_data=valid_gen,
                                 validation_steps=steps_per_epoch_val,
-                                max_queue_size=16,
-                                use_multiprocessing=True, workers=4,
                                 initial_epoch=0)
 
 except KeyboardInterrupt:

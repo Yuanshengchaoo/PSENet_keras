@@ -7,7 +7,7 @@ def getArgs():
         '-c', '--config',
         metavar='C',
         default='./config/config.json',
-        #default='E:\\PycharmProject\\pasi+detection\\config\\config.json',
+        # default='E:\\PycharmProject\\pasi+detection\\config\\config.json',
         help='The Configuration file')
     args = argparser.parse_args()
     return args
