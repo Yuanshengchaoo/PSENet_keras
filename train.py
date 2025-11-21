@@ -141,7 +141,11 @@ fit_kwargs = dict(
     initial_epoch=0,
 )
 
-# Ensure no deprecated arguments slip through (e.g., from user edits or legacy configs)
+# Proactively drop legacy multiprocessing kwargs even if they slip in via user edits
+for legacy_kw in ("use_multiprocessing", "workers", "max_queue_size"):
+    fit_kwargs.pop(legacy_kw, None)
+
+# Ensure no other deprecated arguments slip through (e.g., from user edits or legacy configs)
 fit_kwargs = sanitize_fit_kwargs(siamese_model, fit_kwargs)
 
 history = None
