@@ -8,7 +8,7 @@ source for PSENet - Psoriasis Severity Evaluation Network, AAAI-2020
 
 
 
-The master branch works with **Keras 2.2.4**.
+The master branch now targets **TensorFlow 2.17** and **Keras 3.4.1**.
 
 
 

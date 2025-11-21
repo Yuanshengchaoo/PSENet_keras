@@ -28,8 +28,9 @@ def locate_loss(label_list, result_list):
     alpha = 0.25
     gamma = 2
 
-    focal_loss = tf.multiply(-label_list, 1 - alpha) * tf.pow(1 - result_list, gamma) * tf.log(result_list) - \
-                 tf.multiply(1 - label_list, alpha) * tf.pow(result_list, gamma) * tf.log(1 - result_list)
+    clipped_result = tf.clip_by_value(result_list, 1e-7, 1.0 - 1e-7)
+    focal_loss = tf.multiply(-label_list, 1 - alpha) * tf.pow(1 - clipped_result, gamma) * tf.math.log(clipped_result) - \
+                 tf.multiply(1 - label_list, alpha) * tf.pow(clipped_result, gamma) * tf.math.log(1 - clipped_result)
 
     focal_loss = tf.reduce_mean(focal_loss)
 
