@@ -1,6 +1,6 @@
 import os
-from keras.utils import multi_gpu_model
-from keras import callbacks
+import tensorflow as tf
+from keras import callbacks, optimizers
 from PIL import ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 import matplotlib.pyplot as plt
@@ -12,7 +12,6 @@ from model import PSENet
 from data_generator import pasi_data
 from loss_metric import score_loss, siam_loss, locate_loss, score_metric, locate_metric
 from self_callbacks import MyEarlyStop
-from acc_opt import SGDAccumulate
 
 global patient_dict
 
@@ -24,27 +23,24 @@ data_loader = pasi_data()
 train_gen = data_loader.train_generator(myModelConfig.batch_size)
 valid_gen = data_loader.valid_generator(myModelConfig.batch_size)
 
-siamese_model = PSENet(myModelConfig)
+strategy = tf.distribute.MirroredStrategy() if myModelConfig.num_gpus > 1 else tf.distribute.get_strategy()
+with strategy.scope():
+    siamese_model = PSENet(myModelConfig)
 
-print(siamese_model.input)
-print(siamese_model.output)
-siamese_model.summary()
+    print(siamese_model.input)
+    print(siamese_model.output)
+    siamese_model.summary()
 
-# parallel_model = siamese_model
-parallel_model = multi_gpu_model(siamese_model, gpus=myModelConfig.num_gpus)
+    optimizer = optimizers.SGD(learning_rate=myModelConfig.learning_rate, momentum=myModelConfig.momentum, nesterov=True)
 
-sgd_accu = SGDAccumulate(lr=myModelConfig.learning_rate, momentum=myModelConfig.momentum, nesterov=True,
-                         accum_iters=myModelConfig.accu_num)
-# sgd = optimizers.SGD(lr=learning_rate, momentum=momentum, nesterov=True)
-
-reduce_lr = callbacks.ReduceLROnPlateau(monitor='val_loss', factor=myModelConfig.learning_rate_decay_factor, patience=5,
-                                        verbose=1, mode='min', cooldown=10, min_lr=0.00001)
-my_early_stop = MyEarlyStop(siamese_model, myModelConfig.checkpoint_dir)
+    reduce_lr = callbacks.ReduceLROnPlateau(monitor='val_loss', factor=myModelConfig.learning_rate_decay_factor, patience=5,
+                                            verbose=1, mode='min', cooldown=10, min_lr=0.00001)
+    my_early_stop = MyEarlyStop(myModelConfig.checkpoint_dir)
 myTensorboard = callbacks.TensorBoard(log_dir=myModelConfig.summary_dir, histogram_freq=0, write_graph=False,
                                       write_images=True)
 
 my_call_back = [my_early_stop, reduce_lr, myTensorboard]
-parallel_model.compile(
+siamese_model.compile(
     loss={"scoreA": score_loss, "scoreB": score_loss, "scoreSiam": siam_loss,
           "single_model_1": locate_loss,
           "single_model_2": locate_loss,
@@ -67,7 +63,7 @@ parallel_model.compile(
                   "single_model_8": 1,
                   "single_model_9": 1,
                   "single_model_10": 1},
-    optimizer=sgd_accu,
+    optimizer=optimizer,
     metrics={"scoreA": score_metric, "scoreB": score_metric, "scoreSiam": score_metric,
              "single_model_1": locate_metric,
              "single_model_2": locate_metric,
@@ -80,28 +76,43 @@ parallel_model.compile(
              "single_model_9": locate_metric,
              "single_model_10": locate_metric,})
 
-print("compiled")
+ print("compiled")
 
-history = None
-try:
-    history = parallel_model.fit_generator(generator=train_gen, epochs=myModelConfig.num_epochs, verbose=1,
-                                           steps_per_epoch=steps_per_epoch_train,
-                                           callbacks=my_call_back,
-                                           validation_data=valid_gen,
-                                           validation_steps=steps_per_epoch_val,
-                                           max_queue_size=16,
-                                           use_multiprocessing=True,workers=4,
-                                           initial_epoch=0)
+ history = None
+ fit_kwargs = dict(
+     x=train_gen,
+     epochs=myModelConfig.num_epochs,
+     verbose=1,
+     steps_per_epoch=steps_per_epoch_train,
+     callbacks=my_call_back,
+     validation_data=valid_gen,
+     validation_steps=steps_per_epoch_val,
+     initial_epoch=0,
+ )
 
-except KeyboardInterrupt:
-    print("Early stop by user !")
+ # Guard against legacy kwargs that were removed in TF 2.17/Keras 3.4
+ for legacy_kwarg in ("use_multiprocessing", "workers", "max_queue_size"):
+     fit_kwargs.pop(legacy_kwarg, None)
 
-except StopIteration:
-    print("Training process finished !")
+ try:
+     history = siamese_model.fit(**fit_kwargs)
 
-except:
-    print("training process error")
-    raise
+ except KeyboardInterrupt:
+     print("Early stop by user !")
+
+ except StopIteration:
+     print("Training process finished !")
+
+ except TypeError as exc:
+     # If a user-modified script reintroduces deprecated kwargs, drop them and retry once
+     legacy_triggers = ("use_multiprocessing", "workers", "max_queue_size")
+     if any(trigger in str(exc) for trigger in legacy_triggers):
+         for kw in legacy_triggers:
+             fit_kwargs.pop(kw, None)
+         history = siamese_model.fit(**fit_kwargs)
+     else:
+         print("training process error")
+         raise
 
 
 finally:

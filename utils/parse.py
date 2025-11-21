@@ -1,5 +1,7 @@
 import json
-from bunch import Bunch
+import os
+
+from utils.bunch import Bunch
 
 
 def get_config_from_json(json_file):
@@ -18,6 +20,8 @@ def get_config_from_json(json_file):
 
     # convert the dictionary to a namespace using bunch lib
     config = Bunch(config_dict)
+    config.config_path = os.path.abspath(json_file)
+    config.config_dir = os.path.dirname(config.config_path)
 
     return config, config_dict
 
@@ -26,6 +30,6 @@ def process_config(json_file):
 
     # 在参数信息的bunch中加入summary dir和checkpoint dir的信息
     config, _ = get_config_from_json(json_file)
-    # config.summary_dir = os.path.join("..\experiments", config.exp_name, "summary")
-    # config.checkpoint_dir = os.path.join("..\experiments", config.exp_name, "checkpoints")
+    # config.summary_dir = os.path.join("..\\experiments", config.exp_name, "summary")
+    # config.checkpoint_dir = os.path.join("..\\experiments", config.exp_name, "checkpoints")
     return config
