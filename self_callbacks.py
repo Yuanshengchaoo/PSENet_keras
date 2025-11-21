@@ -4,8 +4,8 @@ import numpy as np
 
 
 class MyEarlyStop(callbacks.Callback):
-    def __init__(self, model, path):
-        self.model = model
+    def __init__(self, path):
+        super().__init__()
         self.path = path
         self.best_mae = float("inf")
         self.best_area = float("inf")
@@ -13,6 +13,8 @@ class MyEarlyStop(callbacks.Callback):
         self.best_sca = float("inf")
         self.best_ind = float("inf")
         self.best_pasi = float("inf")
+
+        os.makedirs(self.path, exist_ok=True)
 
 
     def on_epoch_end(self, epoch, logs=None):
