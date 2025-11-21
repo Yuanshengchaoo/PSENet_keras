@@ -76,26 +76,43 @@ siamese_model.compile(
              "single_model_9": locate_metric,
              "single_model_10": locate_metric,})
 
-print("compiled")
+ print("compiled")
 
-history = None
-try:
-    history = siamese_model.fit(train_gen, epochs=myModelConfig.num_epochs, verbose=1,
-                                steps_per_epoch=steps_per_epoch_train,
-                                callbacks=my_call_back,
-                                validation_data=valid_gen,
-                                validation_steps=steps_per_epoch_val,
-                                initial_epoch=0)
+ history = None
+ fit_kwargs = dict(
+     x=train_gen,
+     epochs=myModelConfig.num_epochs,
+     verbose=1,
+     steps_per_epoch=steps_per_epoch_train,
+     callbacks=my_call_back,
+     validation_data=valid_gen,
+     validation_steps=steps_per_epoch_val,
+     initial_epoch=0,
+ )
 
-except KeyboardInterrupt:
-    print("Early stop by user !")
+ # Guard against legacy kwargs that were removed in TF 2.17/Keras 3.4
+ for legacy_kwarg in ("use_multiprocessing", "workers", "max_queue_size"):
+     fit_kwargs.pop(legacy_kwarg, None)
 
-except StopIteration:
-    print("Training process finished !")
+ try:
+     history = siamese_model.fit(**fit_kwargs)
 
-except:
-    print("training process error")
-    raise
+ except KeyboardInterrupt:
+     print("Early stop by user !")
+
+ except StopIteration:
+     print("Training process finished !")
+
+ except TypeError as exc:
+     # If a user-modified script reintroduces deprecated kwargs, drop them and retry once
+     legacy_triggers = ("use_multiprocessing", "workers", "max_queue_size")
+     if any(trigger in str(exc) for trigger in legacy_triggers):
+         for kw in legacy_triggers:
+             fit_kwargs.pop(kw, None)
+         history = siamese_model.fit(**fit_kwargs)
+     else:
+         print("training process error")
+         raise
 
 
 finally:
